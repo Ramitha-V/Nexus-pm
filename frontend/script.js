@@ -181,16 +181,23 @@ async function handleChatMessage(event) {
             body: JSON.stringify({ question, user_id: user.user_id })
         });
 
-        if (!response.ok) throw new Error('Failed to get a response.');
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Failed to get a response.');
+        }
         
-        const data = await response.json();
-        // The 'answer' is now a structured object { introduction, tasks }
-        const htmlContent = formatAIResponse(data.answer); 
-        
-        appendMessage(htmlContent, 'ai', true); // Pass true to render as HTML
+        const responseData = await response.json();
+        const answer = responseData.answer;
+
+        if (answer.output_type === 'visualization') {
+            renderVisualizationMessage(answer.data);
+        } else {
+            const htmlContent = formatTextResponse(answer.data); 
+            appendMessage(htmlContent, 'ai', true);
+        }
 
     } catch (error) {
-        appendMessage('<p>Sorry, I encountered an error. Please try again.</p>', 'ai', true);
+        appendMessage(`<p>Sorry, I encountered an error: ${error.message}</p>`, 'ai', true);
         console.error(error);
     } finally {
         removeTypingIndicator();
@@ -202,31 +209,78 @@ async function handleChatMessage(event) {
 function appendMessage(content, sender, isHTML = false) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `chat-message ${sender}`;
-    
     if (isHTML) {
-        // Safely set the inner HTML
         messageDiv.innerHTML = content;
     } else {
         const p = document.createElement('p');
         p.textContent = content;
         messageDiv.appendChild(p);
     }
-    
     chatBody.appendChild(messageDiv);
     chatBody.scrollTop = chatBody.scrollHeight;
 }
+
+function renderVisualizationMessage(chartData) {
+    if (!chartData || !chartData.values || chartData.values.length === 0) {
+        appendMessage("<p>No data available to display a chart for this request.</p>", 'ai', true);
+        return;
+    }
+
+    const chartId = `chart-${Date.now()}`;
+    const chartHtml = `
+        <div class="chat-visualization">
+            <h4>${chartData.title}</h4>
+            <div class="chart-wrapper-chat">
+                <canvas id="${chartId}"></canvas>
+            </div>
+        </div>
+    `;
+    appendMessage(chartHtml, 'ai', true);
+
+    const chartColors = ['#4f46e5', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#64748b'];
+
+    setTimeout(() => {
+        const ctx = document.getElementById(chartId)?.getContext('2d');
+        if (!ctx) return;
+        
+        new Chart(ctx, {
+            type: chartData.chart_type,
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    label: chartData.title,
+                    data: chartData.values,
+                    backgroundColor: chartColors,
+                    borderColor: '#ffffff',
+                    borderWidth: chartData.chart_type === 'doughnut' ? 4 : 0,
+                    borderRadius: chartData.chart_type === 'bar' ? 4 : 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: chartData.chart_type === 'bar' ? 'y' : 'x',
+                plugins: { 
+                    legend: { 
+                        display: chartData.chart_type !== 'bar',
+                        position: 'bottom' 
+                    } 
+                },
+                scales: {
+                    x: { display: chartData.chart_type === 'bar', beginAtZero: true },
+                    y: { display: chartData.chart_type === 'bar' }
+                }
+            }
+        });
+    }, 100);
+}
+
 
 function showTypingIndicator() {
     const indicator = document.createElement('div');
     indicator.className = 'chat-message ai';
     indicator.id = 'typing-indicator';
-    indicator.innerHTML = `
-        <div class="typing-indicator">
-            <span></span>
-            <span></span>
-            <span></span>
-        </div>
-    `;
+    indicator.innerHTML = `<div class="typing-indicator"><span></span><span></span><span></span></div>`;
     chatBody.appendChild(indicator);
     chatBody.scrollTop = chatBody.scrollHeight;
 }
@@ -238,20 +292,16 @@ function removeTypingIndicator() {
     }
 }
 
-// This is the new, reliable formatting function
-function formatAIResponse(answer) {
-    // Sanitize the introduction to prevent potential XSS issues
+function formatTextResponse(data) {
     const safeIntro = document.createElement('p');
-    safeIntro.textContent = answer.introduction;
-
+    safeIntro.textContent = data.introduction;
     let html = safeIntro.outerHTML;
 
-    // If there are tasks, build an unordered list
-    if (answer.tasks && answer.tasks.length > 0) {
+    if (data.items && data.items.length > 0) {
         html += '<ul>';
-        answer.tasks.forEach(task => {
+        data.items.forEach(item => {
             const safeLi = document.createElement('li');
-            safeLi.textContent = task;
+            safeLi.textContent = item;
             html += safeLi.outerHTML;
         });
         html += '</ul>';
@@ -283,4 +333,3 @@ function init() {
 }
 
 init();
-
