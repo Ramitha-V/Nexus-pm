@@ -389,5 +389,102 @@ function formatTextResponse(data) {
     return html;
 }
 
+async function handleChatMessage(event) {
+    event.preventDefault();
+    const question = chatInput.value.trim();
+    if (!question) return;
+
+    appendMessage(question, 'user');
+    chatInput.value = '';
+    chatInput.disabled = true;
+    showTypingIndicator();
+
+    const user = JSON.parse(sessionStorage.getItem('user'));
+    
+    // --- ROUTING LOGIC ---
+    const isManager = user.role === 'Manager';
+    const endpoint = isManager ? `${API_BASE_URL}/manager-chat` : `${API_BASE_URL}/chat`;
+    const body = isManager ? { question, manager_id: user.user_id } : { question, user_id: user.user_id };
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) throw new Error('Failed to get a response.');
+        
+        const responseData = await response.json();
+        const answer = responseData.answer;
+
+        if (answer.output_type === 'visualization') {
+            renderVisualizationMessage(answer.data);
+        } else {
+            const htmlContent = formatTextResponse(answer.data); 
+            appendMessage(htmlContent, 'ai', true);
+        }
+
+    } catch (error) {
+        appendMessage('<p>Sorry, I encountered an error. Please try again.</p>', 'ai', true);
+        console.error(error);
+    } finally {
+        removeTypingIndicator();
+        chatInput.disabled = false;
+        chatInput.focus();
+    }
+}
+
+function renderVisualizationMessage(chartData) {
+    if (!chartData || !chartData.values || chartData.values.length === 0) {
+        appendMessage("<p>No data available to display a chart for this request.</p>", 'ai', true);
+        return;
+    }
+    const chartId = `chart-${Date.now()}`;
+    const chartHtml = `<div class="chat-visualization"><h4>${chartData.title}</h4><div class="chart-wrapper-chat"><canvas id="${chartId}"></canvas></div></div>`;
+    appendMessage(chartHtml, 'ai', true);
+
+    const chartColors = ['#4f46e5', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#64748b', '#9333ea', '#facc15'];
+
+    setTimeout(() => {
+        const ctx = document.getElementById(chartId)?.getContext('2d');
+        if (!ctx) return;
+        
+        // Dynamic options based on chart type
+        const options = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { 
+                    display: chartData.chart_type !== 'bar',
+                    position: 'bottom' 
+                } 
+            },
+        };
+
+        if (chartData.chart_type === 'bar') {
+            options.indexAxis = 'y'; // Make bar charts horizontal for readability
+            options.scales = { x: { beginAtZero: true, ticks: { stepSize: 1 } } };
+        }
+        
+        new Chart(ctx, {
+            type: chartData.chart_type,
+            data: { 
+                labels: chartData.labels, 
+                datasets: [{ 
+                    label: chartData.title, 
+                    data: chartData.values, 
+                    backgroundColor: chartColors, 
+                    borderColor: '#fff', 
+                    borderWidth: chartData.chart_type === 'doughnut' ? 4 : 0, 
+                    borderRadius: chartData.chart_type === 'bar' ? 4 : 0, 
+                }] 
+            },
+            options: options
+        });
+    }, 100);
+}
+
+
 // --- INITIALIZE THE APP ---
 init();
