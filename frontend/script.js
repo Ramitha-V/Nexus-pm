@@ -28,27 +28,38 @@ let statusChartInstance, priorityChartInstance;
 let projectHealthChart, overallStatusChart, resourceChart, overallPriorityChart;
 
 // --- EVENT LISTENERS ---
-loginForm.addEventListener('submit', handleLogin);
-logoutButton.addEventListener('click', showLogin);
-managerLogoutButton.addEventListener('click', showLogin);
-prevPageButton.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderContributorTasksTable(); } });
-nextPageButton.addEventListener('click', () => { if (currentPage < Math.ceil(allTasks.length / ITEMS_PER_PAGE)) { currentPage++; renderContributorTasksTable(); } });
-chatFab.addEventListener('click', () => chatModalContainer.classList.add('visible'));
-closeChatBtn.addEventListener('click', () => chatModalContainer.classList.remove('visible'));
-chatForm.addEventListener('submit', handleChatMessage);
+if (loginForm) loginForm.addEventListener('submit', handleLogin);
+if (logoutButton) logoutButton.addEventListener('click', showLogin);
+if (managerLogoutButton) managerLogoutButton.addEventListener('click', showLogin);
+if (prevPageButton) prevPageButton.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderContributorTasksTable(); } });
+if (nextPageButton) nextPageButton.addEventListener('click', () => { if (currentPage < Math.ceil(allTasks.length / ITEMS_PER_PAGE)) { currentPage++; renderContributorTasksTable(); } });
+if (chatFab) chatFab.addEventListener('click', () => chatModalContainer.classList.add('visible'));
+if (closeChatBtn) closeChatBtn.addEventListener('click', () => chatModalContainer.classList.remove('visible'));
+if (chatForm) chatForm.addEventListener('submit', handleChatMessage);
 
 document.querySelectorAll('.tab-link').forEach(button => {
     button.addEventListener('click', () => {
         document.querySelectorAll('.tab-link').forEach(btn => btn.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
         button.classList.add('active');
-        document.getElementById(button.dataset.tab).classList.add('active');
+        const tabId = button.dataset.tab;
+        const tabContent = document.getElementById(tabId);
+        if (tabContent) {
+            tabContent.classList.add('active');
+        }
     });
 });
-document.getElementById('projects-prev-page').addEventListener('click', () => { if (currentProjectsPage > 1) { currentProjectsPage--; renderProjectsTable(); } });
-document.getElementById('projects-next-page').addEventListener('click', () => { if (currentProjectsPage < Math.ceil(allProjects.length / ITEMS_PER_PAGE)) { currentProjectsPage++; renderProjectsTable(); } });
-document.getElementById('team-prev-page').addEventListener('click', () => { if (currentTeamPage > 1) { currentTeamPage--; renderContributorsTable(); } });
-document.getElementById('team-next-page').addEventListener('click', () => { if (currentTeamPage < Math.ceil(allContributors.length / ITEMS_PER_PAGE)) { currentTeamPage++; renderContributorsTable(); } });
+
+const projectsPrev = document.getElementById('projects-prev-page');
+if(projectsPrev) projectsPrev.addEventListener('click', () => { if (currentProjectsPage > 1) { currentProjectsPage--; renderProjectsTable(); } });
+const projectsNext = document.getElementById('projects-next-page');
+if(projectsNext) projectsNext.addEventListener('click', () => { if (currentProjectsPage < Math.ceil(allProjects.length / ITEMS_PER_PAGE)) { currentProjectsPage++; renderProjectsTable(); } });
+
+const teamPrev = document.getElementById('team-prev-page');
+if(teamPrev) teamPrev.addEventListener('click', () => { if (currentTeamPage > 1) { currentTeamPage--; renderContributorsTable(); } });
+const teamNext = document.getElementById('team-next-page');
+if(teamNext) teamNext.addEventListener('click', () => { if (currentTeamPage < Math.ceil(allContributors.length / ITEMS_PER_PAGE)) { currentTeamPage++; renderContributorsTable(); } });
+
 
 // --- AUTH & ROUTING ---
 async function handleLogin(event) {
@@ -291,12 +302,92 @@ function renderPriorityChart(tasks) {
 }
 
 // --- (All chat functions remain here, unchanged) ---
-async function handleChatMessage(event) { /* ... */ }
-function appendMessage(content, sender, isHTML = false) { /* ... */ }
-function renderVisualizationMessage(chartData) { /* ... */ }
-function showTypingIndicator() { /* ... */ }
-function removeTypingIndicator() { /* ... */ }
-function formatTextResponse(data) { /* ... */ }
+async function handleChatMessage(event) {
+    event.preventDefault();
+    const question = chatInput.value.trim();
+    if (!question) return;
+    appendMessage(question, 'user');
+    chatInput.value = '';
+    chatInput.disabled = true;
+    showTypingIndicator();
+    const user = JSON.parse(sessionStorage.getItem('user'));
+    try {
+        const response = await fetch(`${API_BASE_URL}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question, user_id: user.user_id })
+        });
+        if (!response.ok) throw new Error('Failed to get a response.');
+        const responseData = await response.json();
+        const answer = responseData.answer;
+        if (answer.output_type === 'visualization') {
+            renderVisualizationMessage(answer.data);
+        } else {
+            appendMessage(formatTextResponse(answer.data), 'ai', true);
+        }
+    } catch (error) {
+        appendMessage(`<p>Sorry, I encountered an error.</p>`, 'ai', true);
+    } finally {
+        removeTypingIndicator();
+        chatInput.disabled = false;
+        chatInput.focus();
+    }
+}
+
+function appendMessage(content, sender, isHTML = false) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${sender}`;
+    if (isHTML) {
+        messageDiv.innerHTML = content;
+    } else {
+        const p = document.createElement('p');
+        p.textContent = content;
+        messageDiv.appendChild(p);
+    }
+    chatBody.appendChild(messageDiv);
+    chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+function renderVisualizationMessage(chartData) {
+    if (!chartData || !chartData.values || chartData.values.length === 0) {
+        appendMessage("<p>No data available to display a chart for this request.</p>", 'ai', true);
+        return;
+    }
+    const chartId = `chart-${Date.now()}`;
+    const chartHtml = `<div class="chat-visualization"><h4>${chartData.title}</h4><div class="chart-wrapper-chat"><canvas id="${chartId}"></canvas></div></div>`;
+    appendMessage(chartHtml, 'ai', true);
+    setTimeout(() => {
+        const ctx = document.getElementById(chartId)?.getContext('2d');
+        if (!ctx) return;
+        new Chart(ctx, {
+            type: chartData.chart_type,
+            data: { labels: chartData.labels, datasets: [{ label: chartData.title, data: chartData.values, backgroundColor: ['#4f46e5', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#64748b'], borderColor: '#fff', borderWidth: chartData.chart_type === 'doughnut' ? 4 : 0, borderRadius: chartData.chart_type === 'bar' ? 4 : 0, }] },
+            options: { responsive: true, maintainAspectRatio: false, indexAxis: chartData.chart_type === 'bar' ? 'y' : 'x', plugins: { legend: { display: chartData.chart_type !== 'bar', position: 'bottom' } }, scales: { x: { display: chartData.chart_type === 'bar', beginAtZero: true }, y: { display: chartData.chart_type === 'bar' } } }
+        });
+    }, 100);
+}
+
+function showTypingIndicator() {
+    const indicator = document.createElement('div');
+    indicator.id = 'typing-indicator';
+    indicator.className = 'chat-message ai';
+    indicator.innerHTML = `<div class="typing-indicator"><span></span><span></span><span></span></div>`;
+    chatBody.appendChild(indicator);
+    chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+function removeTypingIndicator() {
+    const indicator = document.getElementById('typing-indicator');
+    if (indicator) indicator.remove();
+}
+
+function formatTextResponse(data) {
+    let html = `<p>${data.introduction}</p>`;
+    if (data.items && data.items.length > 0) {
+        html += '<ul>' + data.items.map(item => `<li>${item}</li>`).join('') + '</ul>';
+    }
+    return html;
+}
 
 // --- INITIALIZE THE APP ---
 init();
