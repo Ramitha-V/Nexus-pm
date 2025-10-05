@@ -28,6 +28,7 @@ POSSIBLE INTENTS & THEIR FILTERS:
 11. "get_project_summary": Summarize a project's status. Filters: 'project_name'. (Output: 'visualization').
 12. "get_workload_distribution": Show task distribution by project. (No filters). (Output: 'visualization').
 13. "get_priority_distribution": Show a breakdown of tasks by priority. (No filters). (Output: 'visualization').
+14. "count_tasks": Count tasks. Filters: 'priority', 'status'.
 
 RULES:
 - A specific question about "skills", "comments", "approvals", or "prerequisites" for a task MUST use the specific intents.
@@ -49,6 +50,11 @@ Response: {"output_type": "text", "intent": "get_task_details", "filters": {"tas
 Example 4 (Specific Status):
 User: "do i have any tasks to do"
 Response: {"output_type": "text", "intent": "get_tasks", "filters": {"status": "To Do"}}
+
+Example 5 (Count Query):
+User: "how many high priority tasks do I have?"
+Response: {"output_type": "text", "intent": "count_tasks", "filters": {"priority": "High"}}
+
 """
 
 # --- FINAL Text Generation Model ---

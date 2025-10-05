@@ -69,6 +69,13 @@ def handle_chat_query(query: chat_schema.ChatQuery, db: Session = Depends(get_db
                 models.Approval.status.ilike(f'%{status_filter}%')
             ).all()
             raw_data_for_ai = {"filters": filters, "approved_tasks": [t.title for t in tasks]}
+            
+        elif intent == "count_tasks":
+            q = db.query(models.Task).filter(models.Task.assignee_id == query.user_id)
+            if filters.get('priority'): q = q.filter(models.Task.priority.ilike(filters['priority']))
+            if filters.get('status'): q = q.filter(models.Task.status.ilike(filters['status']))
+            count = q.count()
+            raw_data_for_ai = {"filters": filters, "total_tasks": count}
 
         elif intent == "get_prerequisites" and task:
             raw_data_for_ai = {

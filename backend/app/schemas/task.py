@@ -1,9 +1,12 @@
+#
+# FILE: backend/app/schemas/task.py
+#
+
 from pydantic import BaseModel
 import datetime
-from typing import Optional
+from typing import Optional, List
 
-# Import the models from the user schema file
-from .user import User, UserDashboard
+# --- FIX: We can no longer import User directly at the top ---
 
 # Schema for creating a new task (input)
 class TaskCreate(BaseModel):
@@ -17,16 +20,22 @@ class TaskCreate(BaseModel):
 class Task(BaseModel):
     task_id: int
     title: str
+    description: Optional[str] = None
     status: str
     priority: str
     project_id: int
-    assignee: Optional[User] = None 
+    
+    # --- FIX: Use a forward reference for the assignee as well ---
+    assignee: Optional["User"] = None
 
     class Config:
         from_attributes = True
 
-# --- THIS IS THE FIX ---
-# Now that the 'Task' model is fully defined, we tell the UserDashboard
-# model to resolve its forward reference to 'Task'.
-UserDashboard.model_rebuild()
 
+# --- IMPORTANT: Rebuild models to resolve the forward references ---
+# After all models that reference each other have been defined, we can now
+# safely import them and tell Pydantic to resolve the string references.
+from .user import User, UserDashboard
+
+UserDashboard.model_rebuild()
+Task.model_rebuild()

@@ -1,33 +1,35 @@
+#
+# FILE: backend/app/schemas/user.py
+#
+
 from pydantic import BaseModel, EmailStr
-from typing import List, TYPE_CHECKING
+from typing import List, Optional
 
-if TYPE_CHECKING:
-    from .task import Task
-
-# --- THIS IS THE NEW PART ---
-# Schema for validating the login request body
+# This model is for the login request body
 class UserLogin(BaseModel):
-    email: EmailStr # Use EmailStr for automatic email validation
+    email: EmailStr
 
-# Schema for basic user info in API responses
+# This is the main User model for API responses
 class User(BaseModel):
     user_id: int
     name: str
-    email: str
+    email: EmailStr
     role: str
 
     class Config:
         from_attributes = True
 
-# Schema for the user's task statistics
 class UserStats(BaseModel):
     total_tasks: int
     tasks_todo: int
     tasks_inprogress: int
     tasks_done: int
 
-# A combined model for the entire dashboard
 class UserDashboard(BaseModel):
     user_info: User
     stats: UserStats
+    # --- FIX: Use a forward reference (string) to break the import cycle ---
     tasks: List["Task"]
+
+    class Config:
+        from_attributes = True
