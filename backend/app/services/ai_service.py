@@ -29,10 +29,28 @@ POSSIBLE INTENTS & THEIR FILTERS:
 12. "get_workload_distribution": Show task distribution by project. (No filters). (Output: 'visualization').
 13. "get_priority_distribution": Show a breakdown of tasks by priority. (No filters). (Output: 'visualization').
 14. "count_tasks": Count tasks. Filters: 'priority', 'status'.
+15.  "get_my_tasks_by_date": Find user's tasks due in a timeframe. Filters: 'timeframe', 'priority', 'status'.
+16.  "get_upcoming_milestones": List tasks due soon. Filters: 'timeframe', 'priority', 'status'.
+17.  "get_long_running_tasks": Find tasks in progress for a while. Filters: 'duration', 'priority'.
+18.  "get_my_overdue_with_dependencies": List the user's overdue tasks and dependencies. Filters: 'priority'.
+19.  "get_my_skills": Find the user's own skills. No filters.
+20.  "get_my_project_team": Find the user's teammates on their projects. No filters.
+21.  "get_my_manager": Find the manager(s) associated with the user's tasks. No filters.
 
 RULES:
 - A specific question about "skills", "comments", "approvals", or "prerequisites" for a task MUST use the specific intents.
 - A general question like "tell me everything" or "give me all details" MUST map to "get_task_details".
+- A question about "milestones" MUST use "get_upcoming_milestones".
+- A question about "overdue tasks" MUST use "get_my_overdue_with_dependencies".
+- A question about tasks "in progress for more than X days" MUST use "get_long_running_tasks".
+- A question about tasks due in a specific timeframe (e.g., "next 7 days") MUST use "get_my_tasks_by_date".
+- A question about "my skills" MUST use "get_my_skills".
+- A question about "my team" or "who I work with" MUST use "get_my_project_team".
+- A question about "who is my manager" MUST use "get_my_manager".
+
+- Extract all applicable filters.
+
+
 - Respond ONLY with the JSON object.
 
 Example 1 (Specific Skills):
@@ -54,6 +72,18 @@ Response: {"output_type": "text", "intent": "get_tasks", "filters": {"status": "
 Example 5 (Count Query):
 User: "how many high priority tasks do I have?"
 Response: {"output_type": "text", "intent": "count_tasks", "filters": {"priority": "High"}}
+
+Example 6 (Date with Priority):
+User: "Show me my high priority tasks due in the next 7 days"
+Response: {"output_type": "text", "intent": "get_my_tasks_by_date", "filters": {"timeframe": "next 7 days", "priority": "High"}}
+
+Example 7 (Overdue with Priority):
+User: "List all my high priority overdue tasks and their dependencies"
+Response: {"output_type": "text", "intent": "get_my_overdue_with_dependencies", "filters": {"priority": "High"}}
+
+Example 8 (Long-running with Priority):
+User: "Which high priority tasks have been in progress for more than 7 days?"
+Response: {"output_type": "text", "intent": "get_long_running_tasks", "filters": {"duration": "7 days", "priority": "High"}}
 
 """
 

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, date, timedelta
+from sqlalchemy import distinct
 from collections import Counter
 
 from app.db import models
@@ -13,14 +14,17 @@ router = APIRouter()
 def format_date(dt):
     return dt.strftime('%B %d, %Y') if dt else "Not set"
 
-def parse_timeframe(timeframe: str) -> (date, date):
-    today = date.today()
+def parse_timeframe(timeframe: str) -> (datetime, datetime):
+    today = datetime.now()
     timeframe = timeframe.lower()
-    if "today" in timeframe: return today, today
-    if "this week" in timeframe:
-        start = today - timedelta(days=today.weekday())
-        return start, start + timedelta(days=6)
-    return None, None # Simplified for brevity
+    
+    if "next 7 days" in timeframe:
+        return today, today + timedelta(days=7)
+    if "next 14 days" in timeframe:
+        return today, today + timedelta(days=14)
+    
+    return None, None
+
 
 @router.post("/chat", response_model=chat_schema.ChatResponse)
 def handle_chat_query(query: chat_schema.ChatQuery, db: Session = Depends(get_db)):
@@ -120,6 +124,94 @@ def handle_chat_query(query: chat_schema.ChatQuery, db: Session = Depends(get_db
                 "Approvals": [f"{a.status} by {a.approver.name}" for a in task.approvals],
                 "Timeline": f"Est. End: {format_date(task.estimated_end_date)}"
             }
+        elif intent == "get_my_tasks_by_date":
+            timeframe = filters.get("timeframe")
+            start_date, end_date = parse_timeframe(timeframe)
+            tasks = []
+            if start_date and end_date:
+                q = db.query(models.Task).filter(
+                    models.Task.assignee_id == query.user_id,
+                    models.Task.estimated_end_date.between(start_date, end_date)
+                )
+                # Apply optional filters
+                if filters.get('priority'): q = q.filter(models.Task.priority.ilike(filters['priority']))
+                if filters.get('status'): q = q.filter(models.Task.status.ilike(filters['status']))
+                tasks = q.order_by(models.Task.estimated_end_date).all()
+            raw_data_for_ai = {"filters": filters, "tasks_due": [f"'{t.title}' (Due: {format_date(t.estimated_end_date)})" for t in tasks]}
+
+        elif intent == "get_upcoming_milestones":
+            timeframe = filters.get("timeframe", "next 14 days")
+            start_date, end_date = parse_timeframe(timeframe)
+            milestones = []
+            if start_date and end_date:
+                q = db.query(models.Task).filter(
+                    models.Task.status != 'Done',
+                    models.Task.estimated_end_date.between(start_date, end_date)
+                )
+                if filters.get('priority'):
+                    q = q.filter(models.Task.priority.ilike(filters['priority']))
+                else:
+                    q = q.filter(models.Task.priority == 'High') # Default to High priority
+                if filters.get('status'):
+                    q = q.filter(models.Task.status.ilike(filters['status']))
+                milestones = q.order_by(models.Task.estimated_end_date).all()
+            raw_data_for_ai = {"filters": filters, "milestones": [f"'{t.title}' (Due: {format_date(t.estimated_end_date)})" for t in milestones]}
+
+        elif intent == "get_long_running_tasks":
+            duration_str = filters.get("duration", "7 days")
+            days = int(duration_str.split(" ")[0])
+            cutoff_date = datetime.now() - timedelta(days=days)
+            q = db.query(models.Task).filter(
+                models.Task.assignee_id == query.user_id,
+                models.Task.status == 'In Progress',
+                models.Task.actual_start_date < cutoff_date
+            )
+            # Apply optional filters
+            if filters.get('priority'): q = q.filter(models.Task.priority.ilike(filters['priority']))
+            tasks = q.all()
+            raw_data_for_ai = {"filters": filters, "long_running_tasks": [t.title for t in tasks]}
+
+        elif intent == "get_my_overdue_with_dependencies":
+            q = db.query(models.Task).options(joinedload(models.Task.dependencies)).filter(
+                models.Task.assignee_id == query.user_id,
+                models.Task.status != 'Done',
+                models.Task.estimated_end_date < datetime.now()
+            )
+            # Apply optional filters
+            if filters.get('priority'): q = q.filter(models.Task.priority.ilike(filters['priority']))
+            overdue_tasks = q.all()
+            tasks_with_deps = [{"title": task.title, "dependencies": [dep.title for dep in task.dependencies]} for task in overdue_tasks]
+            raw_data_for_ai = {"filters": filters, "overdue_tasks": tasks_with_deps}
+        
+        elif intent == "get_my_skills": 
+            user = db.query(models.User).options(joinedload(models.User.skills)).filter(models.User.user_id == query.user_id).first()
+            if user:
+                raw_data_for_ai = {"context": "my_skills", "skills": [s.name for s in user.skills]}
+        
+        elif intent == "get_my_project_team":
+            # Find all project IDs the user is working on
+            project_ids_query = db.query(distinct(models.Task.project_id)).filter(models.Task.assignee_id == query.user_id)
+            project_ids = [pid[0] for pid in project_ids_query.all()]
+            
+            if project_ids:
+                # Find all other contributors on those projects
+                teammates_query = db.query(models.User).join(models.Task).filter(
+                    models.Task.project_id.in_(project_ids),
+                    models.User.role == 'Contributor',
+                    models.User.user_id != query.user_id # Exclude self
+                )
+                teammates = {user.name for user in teammates_query.all()} # Use a set to get unique names
+                raw_data_for_ai = {"context": "my_team", "teammates": sorted(list(teammates))}
+
+        elif intent == "get_my_manager":
+            # Find managers by looking at who approves the user's tasks
+            approvals = db.query(models.Approval).join(models.Task).options(joinedload(models.Approval.approver)).filter(
+                models.Task.assignee_id == query.user_id
+            ).all()
+            managers = {approval.approver.name for approval in approvals if approval.approver}
+            raw_data_for_ai = {"context": "my_manager", "managers": sorted(list(managers))}
+
+
         else:
              raw_data_for_ai = {"filters": filters}
 
