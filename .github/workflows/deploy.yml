@@ -1,9 +1,9 @@
-name: Deploy Nexus PM to EC2 via SSH
+name: Deploy Nexus PM to EC2
 
 on:
   push:
     branches:
-      - feature/deployment-pipeline
+      - feature/deployment-pipeline # Your trigger branch
 
 jobs:
   deploy:
@@ -24,11 +24,10 @@ jobs:
             # Navigate to the project directory on the EC2 instance
             cd /home/ubuntu/Nexus-pm
             
-            # Pull the latest code from the master branch
-            git pull origin master
+            # FIX #1: Pull the latest code from the CORRECT branch
+            git pull origin feature/deployment-pipeline
             
             # Create the .env file from GitHub Secrets for Docker Compose
-            # This securely passes your keys to the application
             echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
             echo "DATABASE_URL_PROD=${{ secrets.DATABASE_URL_PROD }}" >> .env
             
@@ -36,7 +35,7 @@ jobs:
             export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
             export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
             
-            # Pull the latest model/data using DVC
+            # FIX #2: Use the full, correct path to the DVC executable
             /home/ubuntu/.local/bin/dvc pull
             
             # Re-build and deploy the application with Docker Compose
