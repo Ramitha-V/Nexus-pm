@@ -3,12 +3,11 @@ import json
 from typing import List, Dict, Any
 from app.core.config import settings
 
-# Configure the Gemini API client
+
 genai.configure(api_key=settings.GEMINI_API_KEY)
 generation_config = genai.types.GenerationConfig(response_mime_type="application/json")
 MODEL_NAME = 'gemini-2.5-flash'
 
-# --- FINAL, HIGHLY-SPECIFIC Intent Recognition Model ---
 intent_model = genai.GenerativeModel(MODEL_NAME, generation_config=generation_config)
 intent_prompt = """
 Your job is to be an expert query classifier. Analyze the user's question and generate a JSON object describing their intent.

@@ -9,41 +9,46 @@ MODEL_NAME = 'gemini-2.5-flash'
 
 intent_model = genai.GenerativeModel(MODEL_NAME, generation_config=generation_config)
 intent_prompt = """
-Your job is to be an expert query classifier for a project manager. Analyze the user's request and generate a JSON object describing their intent.
+Your job is to be an expert query classifier for a project manager. You must generate a JSON object describing their intent.
 The JSON must have "output_type", "intent", and "filters".
 
 POSSIBLE INTENTS & THEIR FILTERS:
-1.  "get_contributor_workload": Find tasks for a specific user. Filters: 'contributor_name'.
-2.  "find_available_contributors": Find users whose status is 'Available'. No filters.
-3.  "find_contributors_by_skill": Find users with a specific skill. Filters: 'skill_name'.
-4.  "create_task": Create a new task. Filters: 'title', 'project_name', 'priority', 'required_skills'.
-5.  "recommend_assignee": Recommend the best person for a task. Filters: 'task_title'.
-6.  "assign_task": Assign a task to a specific person. Filters: 'task_title', 'contributor_name'.
-7.  "visualize_team_workload": Chart the number of tasks per contributor. (No filters). (Output: 'visualization')
-8.  "visualize_skill_distribution": Chart the skills across the team. (No filters). (Output: 'visualization')
-9.  "visualize_project_health": Chart the completion status of all projects. (No filters). (Output: 'visualization')
+- "get_my_tasks", "count_my_tasks": Manager's own tasks. Filters: 'priority', 'status'.
+- "get_contributors", "count_contributors": List or count all contributors.
+- "get_by_availability", "count_by_availability": List or count contributors by availability. Filters: 'availability_status'.
+- "get_by_skill", "count_by_skill": List or count contributors by skill. Filters: 'skill_name'.
+- "get_tasks_by_approval", "count_by_approval_status": List or count tasks by approval status. Filters: 'approval_status'.
+- "get_prerequisites": Find prerequisites for a task. Filters: 'task_title'.
+- "get_skill_requirements": Find ONLY skills for a task. Filters: 'task_title'.
+- "get_comments": Find ONLY comments for a task. Filters: 'task_title'.
+- "get_approval_status": Find ONLY approval status for a task. Filters: 'task_title'.
+- "get_task_timeline": Find ONLY dates for a task. Filters: 'task_title'.
+- "create_task": Create a task. Filters: 'title', 'project_name', 'description', etc.
+- "update_task": Update a task. Filters: 'task_title' and/or 'task_id', plus fields to update.
+- "recommend_assignee": Recommend an assignee. Filters: 'task_title' and/or 'task_id'.
+- "assign_task": Assign a task. Filters: 'task_title' and/or 'task_id', 'contributor_name'.
+- "approve_task": Approve a task. Filters: 'task_title' and/or 'task_id'.
+- "visualize_team_workload", "visualize_skill_distribution", "visualize_project_health": Visualization intents.
+- "get_contributor_workload": A specific contributor's tasks. Filters: 'contributor_name'.
 
 RULES:
-- A question about creating a task MUST use "create_task".
-- A question about "who should" or "best person for" a task MUST use "recommend_assignee".
-- A question about a specific person's work MUST use "get_contributor_workload".
+- "list", "who are", "show me" implies a "get_" intent. "how many", "count" implies a "count_" intent.
+- Action verbs like "update", "assign", "approve", "create" MUST use their specific intents.
+- If the user provides a task ID (e.g., "update task ID 123"), you MUST extract it as 'task_id'.
+- "what is [person's name] working on?" MUST use "get_contributor_workload".
 - Respond ONLY with the JSON object.
 
-Example 1 (Create Task):
-User: "create a new high-priority task 'Design the API schema' for the 'SOLIDWORKS 2026' project, it needs Python skills"
-Response: {"output_type": "text", "intent": "create_task", "filters": {"title": "Design the API schema", "project_name": "SOLIDWORKS 2026 Rollout", "priority": "High", "required_skills": ["Python"]}}
+Example 1 (List Skills):
+User: "who knows Python?"
+Response: {"output_type": "text", "intent": "get_by_skill", "filters": {"skill_name": "Python"}}
 
-Example 2 (Recommend Assignee):
-User: "who is the best person to assign the task 'Optimize the geometry kernel' to?"
-Response: {"output_type": "text", "intent": "recommend_assignee", "filters": {"task_title": "Optimize the geometry kernel"}}
+Example 2 (Count Skills):
+User: "how many people know Python?"
+Response: {"output_type": "text", "intent": "count_by_skill", "filters": {"skill_name": "Python"}}
 
-Example 3 (Visualize Workload):
-User: "show me a chart of my team's workload"
-Response: {"output_type": "visualization", "intent": "visualize_team_workload", "filters": {}}
-
-Example 4 (Visualize Skills):
-User: "can you visualize the skill distribution on my team?"
-Response: {"output_type": "visualization", "intent": "visualize_skill_distribution", "filters": {}}
+Example 3 (Update with ID):
+User: "update task ID 145 and set the priority to high"
+Response: {"output_type": "text", "intent": "update_task", "filters": {"task_id": 145, "priority": "High"}}
 """
 
 summary_model = genai.GenerativeModel(MODEL_NAME, generation_config=generation_config)
@@ -53,23 +58,16 @@ TASK: Based on the provided JSON data, generate a structured JSON response with 
 - "introduction": A friendly, one-sentence summary that SPECIFICALLY mentions the context.
 - "items": An array of strings for any lists.
 
-EXAMPLE (Contributor Workload):
-Input: {"contributor_name": "Blake Choi", "tasks": [{"id": 101, "title": "Design the API"}, {"id": 105, "title": "Design the API"}]}
-Response:
-{
-  "introduction": "Here are all 2 tasks currently assigned to Blake Choi:",
-  "items": [
-    "Task #101: Design the API",
-    "Task #105: Design the API"
-  ]
-}
+RULES:
+- If the input has a "no_results_for" key, state that no items were found for that query.
+- If the input has an "ambiguous_tasks" key, you MUST list the tasks with their IDs and instruct the user to be more specific.
 
-EXAMPLE (Recommendation):
-Input: {"task_title": "Task A", "recommendations": [{"name": "Beth Jones", "score": 100}, {"name": "David Rivera", "score": 50}]}
+EXAMPLE (Ambiguous Task):
+Input: {"ambiguous_tasks": [{"id": 101, "title": "Design the API"}, {"id": 105, "title": "Design the API"}]}
 Response:
 {
-  "introduction": "Based on availability and skill match, here are my recommendations for the task 'Task A':",
-  "items": ["1. Beth Jones (Skill Match: 100%)", "2. David Rivera (Skill Match: 50%)"]
+  "introduction": "I found multiple tasks with that name. Please be more specific by using the task ID in your next command:",
+  "items": ["ID 101: Design the API", "ID 105: Design the API"]
 }
 Now, generate the JSON response for the following data:
 """
@@ -86,14 +84,18 @@ def get_manager_intent_from_llm(question: str) -> Dict[str, Any]:
         return {"output_type": "text", "intent": "error", "filters": {}}
 
 def get_manager_summary_from_llm(data: Any) -> Dict:
-    is_empty = not data or (isinstance(data, dict) and not any(v for k, v in data.items() if k != 'filters'))
+    is_empty = not data or (isinstance(data, dict) and "count" not in data and not any(v for k, v in data.items() if k != 'filters'))
     if is_empty:
-        return {"introduction": "I couldn't find any information matching your request.", "items": []}
+        context = {"no_results_for": data if isinstance(data, dict) else {}}
+        data_json = json.dumps(context)
+    else:
+        if isinstance(data, dict): data_for_ai = {k: v for k, v in data.items() if v or k in ['filters', 'count']}
+        else: data_for_ai = data
+        data_json = json.dumps(data_for_ai, indent=2)
     try:
-        data_json = json.dumps(data, indent=2)
         full_prompt = f"{summary_prompt}\n{data_json}"
         response = summary_model.generate_content(full_prompt)
         return json.loads(response.text)
     except Exception as e:
         print(f"Manager AI Service ERROR (Summary Generation): {e}")
-        return {"introduction": "I had someaa trouble generating a summary.", "items": []}
+        return {"introduction": "I had some trouble generating a summary.", "items": []}
