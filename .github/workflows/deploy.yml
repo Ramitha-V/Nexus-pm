@@ -3,7 +3,7 @@ name: Deploy Nexus PM to EC2 via SSH
 on:
   push:
     branches:
-      - master
+      - feature/deployment-pipeline
 
 jobs:
   deploy:
