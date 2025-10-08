@@ -1,9 +1,43 @@
+# Environment Variables & Secrets
+# --- MOST IMPORTANT: Never commit your API keys or database passwords! ---
 .env
 
+# Python / Backend
+# Ignore the virtual environment folder, cache, and compiled files
 venv/
-pycache/
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
 
+# DVC - Data Version Control
+# Ignore the local cache where large files are actually stored
+.dvc/cache
+
+# Node.js / Frontend
+# Ignore the massive folder of downloaded packages
+node_modules/
+# Ignore build output directories
+dist/
+.next/
+# Ignore log files
+npm-debug.log*
+yarn-error.log*
+yarn-debug.log*
+
+# IDE & Editor Configuration
+# Ignore configuration folders for common editors
 .vscode/
+.idea/
+
+# Operating System Files
+# Ignore system-specific metadata files
+.DS_Store
+Thumbs.db
+
+
+
+
+
+
+

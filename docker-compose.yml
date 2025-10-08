@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    container_name: nexus_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=your_strong_password # Use a strong password
+      - POSTGRES_DB=nexus_pm_db
+    restart: always
+
+  backend:
+    build: ./backend
+    container_name: nexus_backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    # These environment variables will be populated by the .env file
+    # that our GitHub Action creates during deployment.
+    environment:
+      - DATABASE_URL=${DATABASE_URL_PROD}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    restart: always
+
+  frontend:
+    build: ./frontend
+    container_name: nexus_frontend
+    ports:
+      - "80:80"
+    restart: always
+
+volumes:
+  postgres_data:

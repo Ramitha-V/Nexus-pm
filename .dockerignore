@@ -1,0 +1,13 @@
+# Git files
+.git
+.gitignore
+
+# DVC cache
+.dvc/cache
+
+# Python virtual environment
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
