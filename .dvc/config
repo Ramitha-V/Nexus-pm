@@ -1,0 +1,4 @@
+[core]
+    remote = my-s3
+['remote "my-s3"']
+    url = s3://aayushbtechbucket
