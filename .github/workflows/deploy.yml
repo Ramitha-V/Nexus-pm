@@ -3,7 +3,7 @@ name: Deploy to EC2 via SSH
 on:
   push:
     branches:
-      - feature/deployment-pipeline
+      - master
 
 jobs:
   deploy:
