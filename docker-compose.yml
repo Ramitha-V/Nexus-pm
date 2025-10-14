@@ -8,7 +8,7 @@ services:
       - postgres_data:/var/lib/postgresql/data/
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=your_strong_password # Use a strong password
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD} # Use a strong password
       - POSTGRES_DB=nexus_pm_db
     restart: always
 

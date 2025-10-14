@@ -42,6 +42,7 @@ jobs:
             
             # Create the .env file from GitHub Secrets for Docker Compose
             echo "--- Creating .env file ---"
+            echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
             echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
             echo "DATABASE_URL_PROD=${{ secrets.DATABASE_URL_PROD }}" >> .env
             
