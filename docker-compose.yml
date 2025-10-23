@@ -19,6 +19,11 @@ services:
       - "8000:8000"
     depends_on:
       - db
+    # <<< START OF CHANGE >>>
+    volumes:
+      - ./backend:/app # This line maps your backend code
+      - ./ml:/app/ml   # <<< ADD THIS LINE to map your ml folder
+    # <<< END OF CHANGE >>>
     # These environment variables will be populated by the .env file
     # that our GitHub Action creates during deployment.
     environment:
