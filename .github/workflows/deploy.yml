@@ -1,65 +1,59 @@
-name: Deploy to EC2 via SSH
+name: Deploy Nexus PM to EC2
 
 on:
   push:
     branches:
-      - feature/deployment-pipeline
+      - feature/deployment-pipeline # Trigger deployment on this branch
 
 jobs:
   deploy:
     name: Deploy to EC2
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest # Use a standard GitHub-hosted runner
 
     steps:
       - name: 1. Checkout repository
+        # Gets the code from your repository onto the runner
+        # This isn't strictly needed if pulling on EC2, but good practice
         uses: actions/checkout@v4
 
-      - name: 2. Setup SSH Key
-        run: |
-          # Create the .ssh directory if it doesn't exist
-          mkdir -p ~/.ssh/
-          
-          # Write the private key from the secret into a file
-          echo "${{ secrets.EC2_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          
-          # Set the required, strict file permissions
-          chmod 600 ~/.ssh/id_rsa
+      - name: 2. Deploy via SSH using appleboy action
+        # Uses the community action to handle SSH connection
+        uses: appleboy/ssh-action@master
+        with:
+          # Use the correct secret names from your repository
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_PRIVATE_KEY }} # Use the key secret you created
 
-      - name: 3. Connect and Deploy to EC2
-        run: |
-          # Connect to the EC2 instance and run the deployment script.
-          # The -o StrictHostKeyChecking=no is important to prevent an interactive prompt.
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} '
-            # --- Start of commands to run ON THE EC2 INSTANCE ---
+          # The script block contains commands to run ON THE EC2 INSTANCE
+          script: |
             echo "--- Connected to EC2 instance ---"
-            
+
             # Navigate to the project directory
             cd /home/ubuntu/Nexus-pm
-            
+
             # Pull the latest code from your feature branch
             echo "--- Pulling latest code ---"
             git pull origin feature/deployment-pipeline
-            
+
             # Create the .env file from GitHub Secrets for Docker Compose
             echo "--- Creating .env file ---"
-            echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" > .env
-            echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
+            echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
+            echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
             echo "DATABASE_URL_PROD=${{ secrets.DATABASE_URL_PROD }}" >> .env
-            
-            # Configure AWS credentials for DVC
+
+            # Configure AWS credentials for DVC (needed for the next step)
             export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
             export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            
+
             # Pull the latest model/data using DVC
             echo "--- Pulling DVC data ---"
             /home/ubuntu/.local/bin/dvc pull
-            
+
             # Re-build and deploy the application with Docker Compose
             echo "--- Deploying with Docker Compose ---"
             docker-compose down
             docker-compose build
             docker-compose up -d
-            
+
             echo "--- Deployment complete ---"
-            # --- End of commands to run ON THE EC2 INSTANCE ---
-            '
