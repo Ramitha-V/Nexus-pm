@@ -62,3 +62,4 @@ jobs:
             
             echo "--- Deployment complete ---"
             # --- End of commands to run ON THE EC2 INSTANCE ---
+            '
