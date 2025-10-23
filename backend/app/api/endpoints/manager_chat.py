@@ -19,7 +19,6 @@ def find_task_safely(db: Session, filters: dict):
     task_id = filters.get("task_id")
     task_title = filters.get("task_title")
 
-
     query_options = [
         joinedload(models.Task.dependencies),
         joinedload(models.Task.required_skills),
@@ -32,7 +31,8 @@ def find_task_safely(db: Session, filters: dict):
         return (task, None) if task else (None, None)
 
     if task_title:
-        tasks = db.query(models.Task).options(*query_options).filter(models.Task.title.ilike(f'%{task_title}%')).all()
+        tasks = db.query(models.Task).options(*query_options).filter(models.Task.title.ilike(task_title)).all()
+        
         if len(tasks) == 1:
             return (tasks[0], None)
         elif len(tasks) > 1:
