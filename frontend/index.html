@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Nexus PM</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Date adapter scripts for Gantt chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns"></script>
+    
     <link rel="stylesheet" href="style.css">
+    <!-- Removed the embedded <style> block for the legend -->
 </head>
 <body>
 
@@ -16,6 +21,7 @@
             <p>Please sign in to view your dashboard.</p>
             <form id="login-form">
                 <input type="email" id="email" placeholder="Enter your email" required>
+                <input type="password" id="password" placeholder="Enter your password" required>
                 <button type="submit">Sign In</button>
             </form>
             <p id="error-message"></p>
@@ -82,6 +88,7 @@
                     <button class="tab-link active" data-tab="overview">Overview</button>
                     <button class="tab-link" data-tab="projects">Projects</button>
                     <button class="tab-link" data-tab="team">Team</button>
+                    <button class="tab-link" data-tab="timeline">Timeline</button>
                 </nav>
                 <div id="overview" class="tab-content active">
                     <section class="stats-grid" id="manager-stats-grid"></section>
@@ -103,7 +110,7 @@
                     </section>
                 </div>
                 <div id="team" class="tab-content">
-                     <section class="table-container">
+                       <section class="table-container">
                         <h2>Team Workload</h2>
                         <table>
                             <thead><tr><th>CONTRIBUTOR</th><th>AVAILABILITY</th><th>SKILLS</th><th>CURRENT TASKS</th></tr></thead>
@@ -112,8 +119,59 @@
                         </table>
                     </section>
                 </div>
+
+                <!-- === TIMELINE TAB === -->
+                <div id="timeline" class="tab-content">
+                    <section class="table-container">
+                        <div class="timeline-header">
+                            <h2>Project Timeline (Gantt Chart)</h2>
+                            <select id="project-timeline-select" class="timeline-select"></select>
+                        </div>
+                        
+                        <!-- === LEGEND === -->
+                        <div class="chart-legend">
+                            <div class="legend-item">
+                                <span class="legend-color overdue"></span>
+                                <span class="legend-label">Overdue</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color in-progress"></span>
+                                <span class="legend-label">In Progress</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color done"></span>
+                                <span class="legend-label">Done</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color todo"></span>
+                                <span class="legend-label">To Do</span>
+                            </div>
+                        </div>
+                        <!-- === END OF LEGEND === -->
+
+                        <div class="chart-wrapper-gantt">
+                            <canvas id="ganttChart"></canvas>
+                        </div>
+                    </section>
+                </div>
+                <!-- === END TIMELINE TAB === -->
+
             </main>
         </div>
+    </div>
+
+    <div class="kanban-view-container" id="kanban-board-view" style="display: none;">
+        <header class="header">
+            <div class="header-title">
+                <h1 id="kanban-project-title">Project Board</h1>
+                <p>Drag and drop tasks to change their status.</p>
+            </div>
+            <div class="user-info">
+                <button id="kanban-back-button" class="kanban-back-btn">&larr; Back to Dashboard</button>
+            </div>
+        </header>
+        <div class="kanban-board" id="kanban-board-cols">
+            </div>
     </div>
     
     <!-- Global Chat Components -->
@@ -138,3 +196,4 @@
     <script src="script.js"></script>
 </body>
 </html>
+

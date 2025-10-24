@@ -43,7 +43,7 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     role = Column(String, default='Contributor')
     availability_status = Column(String, default='Available')
-    
+    hashed_password = Column(String, nullable=False)
     skills = relationship("Skill", secondary=user_skills_table)
     tasks = relationship("Task", back_populates="assignee")
     comments = relationship("Comment", back_populates="author")

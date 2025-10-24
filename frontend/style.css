@@ -126,3 +126,192 @@ tfoot td { border-bottom: none; }
 .chat-visualization { padding: 1rem; background-color: #eef2ff; border-radius: 0.5rem; }
 .chat-visualization h4 { margin: 0 0 1rem 0; text-align: center; color: var(--text-color); }
 .chat-wrapper-chat { position: relative; height: 250px; }
+
+
+/* Style for the header in the new tab */
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.timeline-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+.timeline-select {
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    font-size: 0.875rem;
+}
+
+/* A new, taller chart wrapper for the Gantt chart */
+.chart-wrapper-gantt {
+    position: relative;
+    height: 600px; /* Taller container */
+    width: 100%;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+.chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1.5rem; /* 24px */
+    margin-top: 0.5rem;
+    margin-bottom: 1rem; /* 16px */
+    padding: 0.5rem;
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem; /* 8px */
+}
+.legend-color {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+.legend-label {
+    font-size: 0.875rem; /* 14px */
+    color: #4b5563; /* A nice dark gray */
+}
+
+/* These colors must match your script.js */
+.legend-color.overdue {
+    background-color: rgba(239, 68, 68, 0.7); /* Red */
+}
+.legend-color.in-progress {
+    background-color: rgba(59, 130, 246, 0.7); /* Blue */
+}
+.legend-color.done {
+    background-color: rgba(16, 185, 129, 0.7); /* Green */
+}
+.legend-color.todo {
+    background-color: rgba(100, 116, 139, 0.7); /* Gray */
+}
+
+/* --- KANBAN BOARD STYLES --- */
+.kanban-view-container {
+    display: none; /* Hidden by default */
+    flex-direction: column;
+    height: 100vh;
+    background-color: var(--background-color);
+}
+
+.kanban-view-container .header {
+    padding: 2rem;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--card-background);
+}
+
+.kanban-back-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-background);
+    color: var(--text-color);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-weight: 500;
+}
+.kanban-back-btn:hover { background-color: #f1f5f9; }
+
+.kanban-board {
+    display: flex;
+    flex-grow: 1;
+    gap: 1rem;
+    padding: 1.5rem;
+    overflow-x: auto;
+}
+
+.kanban-column {
+    flex: 1 1 300px; /* Each column has a base width of 300px */
+    min-width: 300px;
+    background-color: #f1f5f9; /* Light gray background for the column */
+    border-radius: 0.75rem;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+}
+
+.kanban-column-header {
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.kanban-column-title {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.kanban-column-body {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-right: 0.5rem; /* For the scrollbar */
+}
+
+.kanban-card {
+    background-color: var(--card-background);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    cursor: grab;
+}
+.kanban-card:active {
+    cursor: grabbing;
+    background-color: #f8fafc;
+}
+
+/* This class is added by JS when dragging */
+.kanban-card.is-dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+}
+
+.kanban-card-title {
+    font-weight: 500;
+    margin: 0 0 0.75rem 0;
+}
+
+.kanban-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.kanban-card-assignee {
+    font-size: 0.875rem;
+    color: var(--subtle-text);
+}
+
+/* Priority pills for cards */
+.priority-pill-wrapper {
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+.priority-High { background-color: #fee2e2; color: #991b1b; }
+.priority-Medium { background-color: #fef9c3; color: #854d0e; }
+.priority-Low { background-color: #e0e7ff; color: #3730a3; }
+
+/* Button to view the board */
+.view-board-btn {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+.view-board-btn:hover { text-decoration: underline; }

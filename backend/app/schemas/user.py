@@ -8,6 +8,7 @@ from typing import List, Optional
 # This model is for the login request body
 class UserLogin(BaseModel):
     email: EmailStr
+    password: str
 
 # This is the main User model for API responses
 class User(BaseModel):

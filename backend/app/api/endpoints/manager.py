@@ -69,3 +69,29 @@ def get_contributors_summary(db: Session = Depends(get_db)):
     contributors = db.query(models.User).options(joinedload(models.User.skills), joinedload(models.User.tasks)).filter(models.User.role == 'Contributor').order_by(models.User.name).all()
     summary = [{"user_id": c.user_id, "name": c.name, "availability": c.availability_status, "skills": [s.name for s in c.skills], "task_load": len(c.tasks)} for c in contributors]
     return summary
+
+@router.get("/manager/project-timeline/{project_id}")
+def get_project_timeline_data(project_id: int, db: Session = Depends(get_db)):
+    """
+    Retrieves all tasks for a specific project, formatted for a Gantt chart.
+    """
+    tasks = db.query(models.Task).filter(
+        models.Task.project_id == project_id,
+        models.Task.estimated_start_date.isnot(None),
+        models.Task.estimated_end_date.isnot(None)
+    ).order_by(models.Task.estimated_start_date).all()
+
+    if not tasks:
+        return []
+
+    gantt_data = []
+    for task in tasks:
+        gantt_data.append({
+            "id": task.task_id,
+            "title": task.title,
+            "start": task.estimated_start_date,
+            "end": task.estimated_end_date,
+            "status": task.status
+        })
+        
+    return gantt_data

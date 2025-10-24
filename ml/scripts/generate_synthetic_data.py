@@ -10,6 +10,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 
 from app.db.session import SessionLocal
 from app.db import models
+from app.core.security import get_password_hash
 
 # --- CONFIGURATION (FOR COMPREHENSIVE TESTING) ---
 NUM_USERS = 25
@@ -21,37 +22,26 @@ COMMENT_PERCENTAGE = 0.7
 # --- DATA POOLS ---
 SKILL_NAMES = ['C++', 'Python', 'CAD Modeling', 'FEA', 'PLM Config', 'Cloud Arch', 'React.js', 'SOLIDWORKS API', 'Kernel Dev', 'DevOps', 'Database Design']
 AVAILABILITY_CHOICES = ['Available', 'Available', 'Available', 'Busy', 'On Leave']
-
-# --- FINAL FIX: Contextual, project-related comments ---
 COMMENT_TEXTS = [
     "This design looks solid, but let's double-check the performance impact before merging.",
     "I'm currently blocked on this. I need the final API specifications from the other team.",
     "Implementation is complete. This task is now ready for the QA team to review.",
-    "I've found a minor bug in the rendering pipeline. The logs are attached to the ticket for review.",
-    "Do we have the updated UX mockups for this properties panel? The current ones are outdated.",
-    "The latest version of the geometry kernel library is causing a conflict here. Rolling back for now.",
-    "The performance benchmarks for the cloud migration are looking very promising.",
-    "This task is more complex than initially estimated. Requesting a deadline extension of 3 days.",
-    "The API documentation is complete and has been published to Confluence."
 ]
-
-# --- Larger, Unique Task Pool ---
+RESOURCE_NAMES = [
+    {"name": "High-Performance Compute Server", "type": "Server"},
+    {"name": "SIMULIA License Seat", "type": "Software License"},
+]
 TASK_TEMPLATES = [
     {"title": "Draft Initial Design Document for V6 Kernel", "description": "Outline the proposed architecture for the next-generation geometry kernel.", "skills": ["C++", "Kernel Dev"]},
     {"title": "Implement User Authentication Endpoint", "description": "Develop the secure login and token generation endpoint using JWT.", "skills": ["Python", "Cloud Arch"]},
     {"title": "Map ERP Data Fields to ENOVIA Schema", "description": "Analyze and map the client's ERP data schema for integration.", "skills": ["PLM Config"]},
-    {"title": "Profile Memory Leaks in Large Assemblies", "description": "Use performance analysis tools to identify memory leaks when loading large CAD assemblies.", "skills": ["C++"]},
-    {"title": "Fix Z-Fighting Artifact in Rendering", "description": "Adjust clipping planes in the rendering pipeline to resolve Z-fighting issues.", "skills": ["SOLIDWORKS API"]},
+    {"title": "Profile Memory Leaks in Large Assemblies", "description": "Use performance analysis tools to identify memory leaks.", "skills": ["C++"], "resources": ["High-Performance Compute Server"]},
+    {"title": "Fix Z-Fighting Artifact in Rendering", "description": "Adjust clipping planes in the rendering pipeline.", "skills": ["SOLIDWORKS API"]},
     {"title": "Create React Components for Properties Panel", "description": "Build reusable React components for the new properties panel.", "skills": ["React.js"]},
     {"title": "Write Automated Tests for Meshing Algorithm", "description": "Develop unit and integration tests for the new meshing algorithm.", "skills": ["Python"]},
     {"title": "Document the New Supply Chain API Endpoints", "description": "Create detailed OpenAPI (Swagger) documentation for all new endpoints.", "skills": ["PLM Config"]},
     {"title": "Set Up CI/CD Pipeline for Cloud Migration", "description": "Configure the Azure DevOps pipeline to automate the build and deployment.", "skills": ["Cloud Arch", "DevOps"]},
-    {"title": "Perform FEA Simulation on New Bracket Design", "description": "Run a static stress analysis on the new bracket design using SIMULIA.", "skills": ["FEA"]},
-    {"title": "Refactor Legacy Import Module for STEP AP242", "description": "Update the data import service to support the modern STEP AP242 file format.", "skills": ["C++"]},
-    {"title": "Develop UI for Task Assignment View", "description": "Implement the frontend view for managers to assign tasks.", "skills": ["React.js"]},
-    {"title": "Test Database Performance Under Load", "description": "Run load tests on the PostgreSQL database.", "skills": ["Database Design"]},
-    {"title": "Design a Scalable Cloud Architecture", "description": "Create a detailed architecture diagram for cloud deployment.", "skills": ["Cloud Arch"]},
-    {"title": "Implement a Caching Strategy for User Profiles", "description": "Use Redis to cache user profiles, reducing database load.", "skills": ["Python", "DevOps"]},
+    {"title": "Perform FEA Simulation on New Bracket Design", "description": "Run a static stress analysis on the new bracket design using SIMULIA.", "skills": ["FEA"], "resources": ["SIMULIA License Seat"]},
 ]
 
 fake = Faker()
@@ -77,13 +67,17 @@ def generate_data(db: Session):
     print("Creating skills, resources, and users...")
     skills_map = {name: models.Skill(name=name) for name in SKILL_NAMES}
     db.add_all(skills_map.values())
+    resources_map = {r["name"]: models.Resource(name=r["name"], type=r["type"]) for r in RESOURCE_NAMES}
+    db.add_all(resources_map.values())
     db.commit()
 
+    hashed_default_password = get_password_hash("test123")
+    
     users = []
     for _ in range(NUM_USERS):
         name = fake.name()
         user_skills = random.sample(list(skills_map.values()), k=random.randint(2, 5))
-        user = models.User(name=name, email=f"{name.lower().replace(' ', '.')}@nexus-pm.corp", role=random.choice(['Manager', 'Contributor']), skills=user_skills, availability_status=random.choice(AVAILABILITY_CHOICES))
+        user = models.User(name=name, email=f"{name.lower().replace(' ', '.')}@nexus-pm.corp", role=random.choice(['Manager', 'Contributor']), skills=user_skills, availability_status=random.choice(AVAILABILITY_CHOICES), hashed_password=hashed_default_password)
         users.append(user)
     db.add_all(users)
     db.commit()
@@ -116,7 +110,7 @@ def generate_data(db: Session):
             elif 5 <= i < 10: # Long-running In Progress tasks
                 status = 'In Progress'
                 actual_start = datetime.now() - timedelta(days=random.randint(8, 15))
-                est_start = actual_start - timedelta(days=5)
+                est_start = actual_start - timedelta(days=5) if actual_start else datetime.now() - timedelta(days=10)
                 est_end = datetime.now() + timedelta(days=random.randint(10, 20))
             elif 10 <= i < 15: # Tasks Due in Next 7 Days
                 est_end = datetime.now() + timedelta(days=random.randint(0, 7))
@@ -127,6 +121,7 @@ def generate_data(db: Session):
                 est_end = datetime.now() + timedelta(days=random.randint(8, 14))
                 est_start = est_end - timedelta(days=15)
             else: # Standard future tasks
+                status = 'To Do'
                 est_start = datetime.now() + timedelta(days=random.randint(1, 30))
                 est_end = est_start + timedelta(days=random.randint(10, 30))
             
@@ -142,7 +137,9 @@ def generate_data(db: Session):
                 project_id=project.project_id, assignee_id=random.choice(users).user_id,
                 estimated_start_date=est_start, estimated_end_date=est_end,
                 actual_start_date=actual_start, actual_end_date=actual_end,
-                required_skills=[skills_map[s_name] for s_name in template.get("skills", [])]
+                required_skills=[skills_map[s_name] for s_name in template.get("skills", [])],
+                # --- THIS IS THE FIX ---
+                required_resources=[resources_map[r_name] for r_name in template.get("resources", [])]
             )
             all_tasks.append(task)
             
