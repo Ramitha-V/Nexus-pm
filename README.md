@@ -10,9 +10,6 @@
 
 An AI-powered, dual-view project management system that transforms a traditional dashboard into a proactive, conversational assistant. Nexus PM can understand natural language, generate on-demand visualizations, and execute intelligent, role-based managerial actions.
 
-![Manager Dashboard Screenshot](https://i.imgur.com/your-screenshot-url.png)
-*(**Recommendation:** Upload a screenshot of your final Manager Dashboard and paste the link here.)*
-
 ## 1. Problem Statement
 
 Traditional project management tools are static, data-heavy repositories. Managers and contributors must manually sift through complex tables and filter menus to find information, leading to information overload and slow decision-making. Crucial processes like task assignment are based on manual review, and the system is purely reactive. This project, **Nexus PM**, solves this by creating an intelligent, proactive "co-pilot" that allows users to *converse* with their project data.
@@ -150,3 +147,4 @@ Log in with one of each to explore the two different dashboards and chatbot capa
 * **Aayush Koul** (22070126003)
 * **Rahul Purandare** (22070126080)
 * **Saharsh Mehrotra** (22070126093)
+
