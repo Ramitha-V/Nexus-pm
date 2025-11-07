@@ -1,5 +1,5 @@
 // --- CONFIGURATION & GLOBAL STATE ---
-const API_BASE_URL = 'http://54.210.95.82:8000/api';
+const API_BASE_URL = 'http://54.226.215.80:8000/api';
 const ITEMS_PER_PAGE = 8;
 let allTasks = [], allProjects = [], allContributors = [];
 let currentPage = 1, currentProjectsPage = 1, currentTeamPage = 1;
